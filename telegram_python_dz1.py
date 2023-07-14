@@ -1,3 +1,5 @@
+import time
+
 import requests
 
 
@@ -25,5 +27,6 @@ def main():
     if last_update != None and 'message' in last_update:
         message(last_update['message'])
 
-
-main()
+while True:
+    main()
+    time.sleep(1)
