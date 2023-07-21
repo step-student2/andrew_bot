@@ -1,5 +1,4 @@
 import json
-import random
 import requests
 import time
 
@@ -8,6 +7,7 @@ base_link = f'https://api.telegram.org/bot{token}/'
 file_storage = 'bot_answered_messages.txt'
 answered_messages = []
 counting_mode = False
+
 bus_services = {
     "044p": {
         "departure_city": "Kyiv",
@@ -28,6 +28,7 @@ bus_services = {
         "free_places": 35,
     }
 }
+
 
 def read_answ_mess():
     global answered_messages
@@ -92,7 +93,12 @@ while True:
                                       '/schedule\n'
                                       '\n')
             if text == '/schedule':
-                for item in bus_services.keys():
-                    print(item)
-                    send_message(chat_id, item)
+                res = 'grafic\n\n'
+                for bus_service_id, bus_service_info in bus_services.items():
+                    res += 'Reys #' + bus_service_id + '\n'
+
+                    for key, value in bus_service_info.items():
+                        res += key + ": " + str(value) + '\n'
+
+                    res += '\n'
     time.sleep(1)
