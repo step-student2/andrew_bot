@@ -1,6 +1,7 @@
 import json
 import requests
 import time
+import hashlib
 
 token = '6338630872:AAFekL6uidz3pGqGVLxOduK-zDeOBMZ5kwM'
 base_link = f'https://api.telegram.org/bot{token}/'
@@ -16,7 +17,6 @@ bus_services = {
         "arrival_time": "20:00",
         "price": 400,
         "total_number_of_places": 40,
-        "free_places": 23,
     },
     "223lk": {
         "departure_city": "Lviv",
@@ -25,9 +25,21 @@ bus_services = {
         "arrival_time": "23:00",
         "price": 500,
         "total_number_of_places": 40,
-        "free_places": 35,
     }
 }
+
+orders = [
+    {
+        "id": "hrejer54j43hd",
+        "name": "Гончарук А.Г.",
+        "bus_service_id": "044p"
+    },
+    {
+        "id": "h6jh578jk6kl6",
+        "name": "Петренко Г.Г.",
+        "bus_service_id": "044p"
+    }
+]
 
 
 def read_answ_mess():
@@ -75,6 +87,20 @@ def send_message(id, text):
     requests.get(link)
 
 
+def cfp(bus_service_id):
+    booked_places = 0
+
+    for order in orders:
+        if order['bus_service_id'] == bus_service_id:
+            booked_places += 1
+
+    free_places = bus_services[bus_service_id]['total_number_of_places'] - booked_places
+
+    return free_places
+
+
+booking_step = 0
+
 while True:
     update = get_update()
 
@@ -87,18 +113,44 @@ while True:
             chat_id = get_chat_id(update)
             print(f"Last notification: {text} from user (id): {chat_id}")
 
-            if text == '/help' or text == '/Help':
-                send_message(chat_id, 'You can run these commands:\n'
-                                      '/help\n'
-                                      '/schedule\n'
-                                      '\n')
-            if text == '/schedule':
-                res = 'grafic\n\n'
-                for bus_service_id, bus_service_info in bus_services.items():
-                    res += 'Reys #' + bus_service_id + '\n'
+            if booking_step == 0:
 
-                    for key, value in bus_service_info.items():
-                        res += key + ": " + str(value) + '\n'
+                if text == '/help' or text == '/Help':
+                    res = 'You can run these commands:\n' \
+                          '/help\n'\
+                          '/schedule\n\n'
 
-                    res += '\n'
+                if text == '/schedule':
+                    res = 'grafic\n\n'
+                    for bus_service_id, bus_service_info in bus_services.items():
+                        res += 'Reys ' + bus_service_id + '\n'
+
+                        for key, value in bus_service_info.items():
+                            res += key + ": " + str(value) + '\n'
+
+                        res += 'free_places' + str(cfp(bus_service_id)) + '\n\n'
+
+                if text == '/book':
+                    send_message(chat_id, 'Напишіть ПІБ та номер рейсу через кому')
+                    booking_step = 1
+            else:
+                order_info = text.split(',')
+                name = order_info[0]
+                bus_service_id = order_info[1]
+                name.strip()
+                bus_service_id.strip()
+                hash_id = hashlib.md5((name + bus_service_id).encode('UTF-8')).hexdigest()
+                send_message(chat_id, 'thank you')
+
+                orders.append({
+                    "id": hash_id,
+                    "name": name,
+                    "bus_service_id": bus_service_id
+
+                })
+                print(orders)
+
+                booking_step = 0
+
+            send_message(chat_id, res)
     time.sleep(1)
