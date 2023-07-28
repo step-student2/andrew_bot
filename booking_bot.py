@@ -1,4 +1,6 @@
 import json
+import sqlite3
+
 import requests
 import time
 import hashlib
@@ -9,38 +11,22 @@ file_storage = 'bot_answered_messages.txt'
 answered_messages = []
 counting_mode = False
 
-bus_services = {
-    "044p": {
-        "departure_city": "Kyiv",
-        "arrival_city": "Lviv",
-        "departure_time": "12:00",
-        "arrival_time": "20:00",
-        "price": 400,
-        "total_number_of_places": 40,
-    },
-    "223lk": {
-        "departure_city": "Lviv",
-        "arrival_city": "Kyiv",
-        "departure_time": "14:30",
-        "arrival_time": "23:00",
-        "price": 500,
-        "total_number_of_places": 40,
-    }
-}
+bus_services = []
+orders = []
 
-orders = [
-    {
-        "id": "hrejer54j43hd",
-        "name": "Гончарук А.Г.",
-        "bus_service_id": "044p"
-    },
-    {
-        "id": "h6jh578jk6kl6",
-        "name": "Петренко Г.Г.",
-        "bus_service_id": "044p"
-    }
-]
+con = sqlite3.connect("booking.db")
+con.row_factory = sqlite3.Row
+cursor = con.cursor()
 
+cursor.execute("SELECT * FROM Orders")
+
+for row in cursor.fetchall():
+    orders.append(dict(row))
+
+cursor.execute("SELECT * FROM bus_services")
+
+for row in cursor.fetchall():
+    bus_services.append(dict(row))
 
 def read_answ_mess():
     global answered_messages
@@ -94,9 +80,7 @@ def cfp(bus_service_id):
         if order['bus_service_id'] == bus_service_id:
             booked_places += 1
 
-    free_places = bus_services[bus_service_id]['total_number_of_places'] - booked_places
-
-    return free_places
+    return booked_places
 
 
 booking_step = 0
@@ -118,17 +102,21 @@ while True:
                 if text == '/help' or text == '/Help':
                     res = 'You can run these commands:\n' \
                           '/help\n'\
-                          '/schedule\n\n'
+                          '/schedule'\
+                          '/delete\n\n'
 
                 if text == '/schedule':
-                    res = 'grafic\n\n'
-                    for bus_service_id, bus_service_info in bus_services.items():
-                        res += 'Reys ' + bus_service_id + '\n'
+                    res = 'ГРАФІК РЕЙСІВ\n\n'
 
-                        for key, value in bus_service_info.items():
-                            res += key + ": " + str(value) + '\n'
+                    for bus_service in bus_services:
+                        for key, value in bus_service.items():
+                            if key == 'id':
+                                key = 'Рейс'
 
-                        res += 'free_places' + str(cfp(bus_service_id)) + '\n\n'
+                            res += key + ': ' + str(value) + '\n'
+
+                        res += 'free_places: ' + str(
+                            bus_service['total_number_of_places'] - cfp(bus_service['id'])) + '\n\n'
 
                 if text == '/book':
                     send_message(chat_id, 'Напишіть ПІБ та номер рейсу через кому')
@@ -142,12 +130,13 @@ while True:
                 hash_id = hashlib.md5((name + bus_service_id).encode('UTF-8')).hexdigest()
                 send_message(chat_id, 'thank you')
 
-                orders.append({
-                    "id": hash_id,
-                    "name": name,
-                    "bus_service_id": bus_service_id
-
-                })
+                # Insert info from BD
+                sqlite_insert_query = f"""INSERT INTO orders
+                                                              (id, name, bus_service_id) 
+                                                               VALUES 
+                                                              ('{hash_id}', '{name}', '{bus_service_id}')"""
+                count = cursor.execute(sqlite_insert_query)
+                con.commit()
                 print(orders)
 
                 booking_step = 0
