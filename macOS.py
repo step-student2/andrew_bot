@@ -1,95 +1,86 @@
-import time
-import tkinter.messagebox
+import os
 from datetime import datetime
 from tkinter import *
-
 from PIL import Image, ImageTk
+import cv2
+import webbrowser
 
-current_os_version = "-= MacOS 17.1 =-"
+photo_save_path = 'C:/Users/Andrew/PycharmProjects/photos/'  # Замените на свой путь
 
+if not os.path.exists(photo_save_path):
+    os.makedirs(photo_save_path)
 
-now = datetime.now()
-current_time = now.strftime("%H:%M:%S")
+def create_camera_window():
+    global photo_saved_message, camera_label
+    camera_window = Toplevel(root)
+    camera_window.attributes('-topmost', True)  # Окно поверх всех других окон
 
-text = None
+    cap = cv2.VideoCapture(0)
 
-current_country = "Ukraine"
+    def take_photo():
+        now = datetime.now()
+        timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
+        photo_filename = f"photo_{timestamp}.jpg"
+        full_path = os.path.join(photo_save_path, photo_filename)
+        ret, frame = cap.read()
+        if ret:
+            cv2.imwrite(full_path, frame)
+            photo_saved_message.set(f"Фото сохранено: {photo_filename}")
+
+    camera_label = Label(camera_window)
+    camera_label.place(x=0, y=0, relwidth=1, relheight=1)
+
+    def update_camera_frame():
+        ret, frame = cap.read()
+        if ret:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = cv2.resize(frame, (1920, 1080))  # Размер кадра совпадает с размерами экрана
+            photo = ImageTk.PhotoImage(image=Image.fromarray(frame))
+            camera_label.config(image=photo)
+            camera_label.image = photo
+            if camera_window.winfo_exists():
+                camera_label.after(10, update_camera_frame)
+
+    update_camera_frame()
+
+    def close_camera_window():
+        cap.release()
+        camera_window.destroy()
+
+    camera_window.protocol("WM_DELETE_WINDOW", close_camera_window)
+
+    take_photo_button = Button(camera_window, text="Take Photo", font=("Arial", 20), command=take_photo)
+    take_photo_button.place(relx=0.5, rely=0.95, anchor='s')
+    take_photo_button.configure(bg='white', relief=SOLID, borderwidth=0)
+    take_photo_button.configure(activebackground=take_photo_button.cget('background'))
 
 root = Tk()
 root.geometry('1920x1080')
 
-root2 = Tk()
-root2.geometry('400x500')
+background_image_path = 'C:/Users/Andrew/PycharmProjects/img/sonoma.jpg'  # Замените путь на свой файл с изображением
+image = Image.open(background_image_path)
+image = image.resize((1920, 1080))  # Растягиваем изображение на весь экран
+photo = ImageTk.PhotoImage(image)
+background_label = Label(root, image=photo)
+background_label.place(x=0, y=0, relwidth=1, relheight=1)
 
-label = Label(root, text=" ")
-label_ln = Label(root, text=" ", image=None)
+def search():
+    google_url = 'https://www.google.com/search?q='
+    webbrowser.open(google_url)
 
-label_ln.pack()
-label.pack()
+btn_search = Button(root, text="Search", font=("Arial", 20), command=search)
+btn_search.pack()
 
+btn_open_camera = Button(root, text="Open Camera", font=("Arial", 20), command=create_camera_window)
+btn_open_camera.pack()
 
+def update_time():
+    current_time = datetime.now().strftime("%H:%M:%S")
+    label_time.config(text=current_time)
+    label_time.after(1000, update_time)
 
+label_time = Label(root, text="time", font=("Arial", 40))
+label_time.pack()
 
-global cache, cache_save
-cache_save = []
-
-def none():
-    print("button removed")
-def show(pos1, pos2, text, size, cache):
-    label.config(text=text, font=size)
-    label.pack(pady=pos1, padx=pos2)
-
-    if cache != cache_save:
-        add_to_cache = cache_save.append(cache)
-
-def load():
-    show(50, 50, "MacOS", 0.5, None)
-    show(50, 70, "", 0.5, "rc_ln")
-
-    updater_c(cache_save)
-
-global start_btn
-start_btn = Button(root2, text='start', command=load)
-start_btn.pack()
-
-
-def draw_home_screen():
-    label.config(text=" ")
-    label_ln.config(text=" ")
-    show(50, 50, "home screen", 0.5, None)
-
-    image = Image.open('C:/Users/Andrew/PycharmProjects/img/sonoma.jpg')
-
-    my_img = ImageTk.PhotoImage(image)
-
-    label_ln.config(image=my_img)
-
-def updater_c(cache):
-
-    print(cache_save)
-    if "rc_ln" in cache_save:
-        label_ln.config(text="-")
-        time.sleep(0.9)
-        label_ln.config(text="--")
-        time.sleep(0.9)
-        label_ln.config(text="---")
-        time.sleep(0.9)
-        label_ln.config(text="----")
-        draw_home_screen()
-        cache_save.clear()
-        start_btn.config(command=none)
-        print(cache_save)
-
-
-
-
-
-
-
-
-
-
-
-
+update_time()
 root.mainloop()
-root2.mainloop()
